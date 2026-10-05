@@ -36,3 +36,19 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
+            docker stop orders || true
+            docker rm orders || true
+            docker run -d -p 8080:6000 --name orders ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
