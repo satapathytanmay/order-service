@@ -1,5 +1,5 @@
 variable "github_repo" {
-  default = "satapathytanmay/order-service"
+  default = "satapathytanmay@169974218/order-service@1402641984"
 }
 
 resource "aws_iam_openid_connect_provider" "github" {

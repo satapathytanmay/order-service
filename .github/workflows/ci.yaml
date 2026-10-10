@@ -39,24 +39,6 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
-
-  # deploy:
-  #   needs: build-and-push
-  #   if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Deploy to EC2
-  #       uses: appleboy/ssh-action@v1
-  #       with:
-  #         host: ${{ secrets.EC2_HOST }}
-  #         username: ${{ secrets.EC2_USER }}
-  #         key: ${{ secrets.EC2_SSH_KEY }}
-  #         script: |
-  #           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
-  #           docker stop orders || true
-  #           docker rm orders || true
-  #           docker run -d -p 8080:6000 --name orders ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
-
   deploy:
     needs: build-and-push
     if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
@@ -66,10 +48,6 @@ jobs:
       contents: read
     
     steps:
-      - name: Debug OIDC claims
-        run: |
-          TOKEN=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
-          python3 -c "import sys,json,base64; p=sys.argv[1].split('.')[1]; p+='='*(-len(p)%4); c=json.loads(base64.urlsafe_b64decode(p)); print({k:c.get(k) for k in ['sub','aud','ref','repository','event_name']})" "$TOKEN"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
