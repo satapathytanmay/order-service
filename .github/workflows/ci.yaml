@@ -40,19 +40,45 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
 
+  # deploy:
+  #   needs: build-and-push
+  #   if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Deploy to EC2
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host: ${{ secrets.EC2_HOST }}
+  #         username: ${{ secrets.EC2_USER }}
+  #         key: ${{ secrets.EC2_SSH_KEY }}
+  #         script: |
+  #           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
+  #           docker stop orders || true
+  #           docker rm orders || true
+  #           docker run -d -p 8080:6000 --name orders ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
+
   deploy:
     needs: build-and-push
     if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
-            docker stop orders || true
-            docker rm orders || true
-            docker run -d -p 8080:6000 --name orders ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ap-south-1
+
+      - name: Deploy with SSM
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/orders-service:${{ github.sha }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[\"docker pull $IMAGE\",\"docker rm -f orders || true\",\"docker run -d -p 8080:6000 --name orders $IMAGE\"]" \
+            --query "Command.CommandId" --output text)
+          sleep 5
+          aws ssm wait command-executed --command-id "$CMD_ID" --instance-id "$INSTANCE_ID"
