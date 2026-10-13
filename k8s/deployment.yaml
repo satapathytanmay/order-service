@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: orders
-          image: tanmaydocker2/orders-service:c49158d1ecc6957af2132293e3f1d968c0a738f3
+          image: tanmaydocker2/orders-service:dfd4813d4f4d7cef95edf643d0d1c552ce48efd2
           ports:
             - containerPort: 6000
           env:
