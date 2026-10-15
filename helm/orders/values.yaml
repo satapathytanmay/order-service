@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: tanmaydocker2/orders-service
-  tag: dfd4813d4f4d7cef95edf643d0d1c552ce48efd2
+  tag: 2a9f9209b1e4a2cc0aa40239ae452915220e164b
 
 service:
   port: 80
